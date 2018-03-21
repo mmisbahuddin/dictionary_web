@@ -1,0 +1,32 @@
+<project name="Dictionary Web" default="site.compile" basedir=".">
+    <!--
+	Each of the following properties are used in the build script.
+	Values for these properties are set by the first place they are
+	defined, from the following list:
+	* Definitions on the "ant" command line (ant -Dfoo=bar compile).
+	* Definitions from a "build.properties" file in the top level
+	source directory of this application.
+	* Definitions from a "build.properties" file in the developer's
+	home directory.
+	* Default definitions in this build.xml file.
+	You will note below that property values can be composed based on the
+	contents of previously defined properties.  This is a powerful technique
+	that helps you minimize the number of changes required when your development
+	environment is modified.  Note that property composition is allowed within
+	"build.properties" files as well as in the "build.xml" script.
+   -->
+    <property file="../build.properties"/>
+    <property file="build.properties"/>
+    <property file="${user.home}/build.properties"/>
+    <property environment="env"/>
+    
+    <!-- ==================== File and Directory Names ======================== -->
+    <property name="build.home" value="${basedir}/build"/>
+    
+    
+    <target name="site.compile">
+            <mkdir dir="${build.home}"/>
+            <echo message="Created directory ${build.home} compile done"/>
+    </target>
+    
+</project>

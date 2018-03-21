@@ -1,0 +1,478 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<meta content="Dictionary Application" name="description" />
+<meta content="Dictionary Application, Dictionary" name="keywords" />
+<meta content="Dictionary Application - Copyright (C) All rights reserved." name="Generator" />
+<title>Dictionary List</title>
+
+<script type="text/javascript">
+var xmlHttp;
+var word;
+var definition;
+var action;
+var deleteID;
+var updateUniqueID;
+var updateDefinitionElement;
+var DICT_PREFIX = "dict-";
+var DEFINITION_PREFIX = "definition-";
+
+//Generic Method
+function createXMLHttpRequest() {
+    if (window.ActiveXObject) {
+        xmlHttp = new ActiveXObject("Microsoft.XMLHTTP");
+    } 
+    else if (window.XMLHttpRequest) {
+        xmlHttp = new XMLHttpRequest();
+    }
+}
+
+//Search Action Method    
+function searchEntries() {
+	searchText = document.getElementById("search_text").value;
+    action = "search";
+    if(searchText == "") {
+        return;
+    }
+    
+    var url ="manageDictionary?" 
+        + createSearchQueryString(searchText, action) 
+        + "&ts=" + new Date().getTime();
+    createXMLHttpRequest();
+    xmlHttp.onreadystatechange = handleSearchStateChange;
+    xmlHttp.open("GET", url, true);
+    xmlHttp.send(null);
+}
+
+function createSearchQueryString(searchText, action) {
+    var queryString = "searchText=" + searchText
+        + "&action=" + action;
+    return queryString;
+}
+
+function handleSearchStateChange() {
+    if(xmlHttp.readyState == 4) {
+        if(xmlHttp.status == 200) {
+        	renderSearchList();
+            clearInputBoxes();
+        }
+        else {
+        	renderMessage("Search dictionary entry service failed.", false);
+        }
+    }
+}
+
+function renderSearchList() {
+    var status = xmlHttp.responseXML.getElementsByTagName("status").item(0).firstChild.nodeValue;
+    status = parseInt(status);
+    if(status != 1) {
+    	renderMessage("Error while searching Dictionary entries.", false);
+        return;
+    }else{
+    	renderMessage("Search Dictionary entries successfully!", true);
+    }
+    var x;
+    var aId, aWord, aDefinition;
+    var list = document.getElementById("dictionaryList").rows;
+    var count =  list.length;
+    for(var i=count-1; i >= 0; i--){
+    	var unsortedRow = list[i];
+    	dictionaryList.removeChild(unsortedRow);
+    }
+    
+   var dictionaryEntries = xmlHttp.responseXML.getElementsByTagName("dict");
+   for(var j=0; j < dictionaryEntries.length; j++){
+   		var dictionary = dictionaryEntries.item(j).childNodes;
+   		for(var k=0; k < dictionary.length; k++){
+   			//var nodeObject = dictionary.nextNode();
+   			var nodeObject = dictionary.item(k);
+    		if(nodeObject.nodeName == "uniqueID"){
+    			aId = nodeObject.firstChild.nodeValue;
+    		}
+    		if(nodeObject.nodeName == "word"){
+    			aWord = nodeObject.firstChild.nodeValue;
+    		}
+    		if(nodeObject.nodeName == "definition"){
+    			aDefinition = nodeObject.firstChild.nodeValue;
+    		}
+   		}
+   		addEntry(aId, aWord, aDefinition);
+    }
+    
+    updateDictionaryManagementServletVisibility();
+}
+
+//Update Definition Method    
+function updateDefinition(uniqueID) {
+    definitionElement = document.getElementById(DEFINITION_PREFIX + uniqueID).value;
+    action = "update";
+    if(uniqueID == "") {
+        return;
+    }
+    
+    updateUniqueID = uniqueID;
+    updateDefinitionElement = definitionElement;
+    
+    var url ="manageDictionary?" 
+        + createUpdateQueryString(uniqueID, definitionElement, "update") 
+        + "&ts=" + new Date().getTime();
+    createXMLHttpRequest();
+    xmlHttp.onreadystatechange = handleUpdateStateChange;
+    xmlHttp.open("GET", url, true);
+    xmlHttp.send(null);
+}
+
+function createUpdateQueryString(uniqueID, definitionElement, action) {
+    var queryString = "uniqueID=" + uniqueID 
+        + "&definitionElement=" + definitionElement
+        + "&action=" + action;
+    return queryString;
+}
+    
+function handleUpdateStateChange() {
+    if(xmlHttp.readyState == 4) {
+        if(xmlHttp.status == 200) {
+        	updateDefinitionElementInList();
+            clearInputBoxes();
+        }
+        else {
+        	renderMessage("Update definition element on Dictionary service failed.", false);
+        }
+    }
+}
+
+function updateDefinitionElementInList(uniqueID, definitionElement) {
+	var responseXML = xmlHttp.responseXML;
+    var status = responseXML.getElementsByTagName("status").item(0).firstChild.nodeValue;
+    status = parseInt(status);
+    if(status != 1) {
+    	var errMessage = responseXML.getElementsByTagName("error").item(0).firstChild.nodeValue;
+    	if(errMessage == "") {
+    		renderMessage("Error while updating definition element on Dictionary entry.", false);
+    	}else{
+        	renderMessage(errMessage, false);
+    	}
+        return;
+    }else{
+    	renderMessage("Dictionary definition element updated successfully!", true);
+    }
+    
+    document.getElementById(DEFINITION_PREFIX + updateUniqueID).value = updateDefinitionElement;
+    
+    updateDictionaryManagementServletVisibility();
+}
+
+//Add Action Method    
+function addEntries() {
+	word = document.getElementById("word").value;
+    definition = document.getElementById("definition").value;
+    action = "add";
+    
+    var url ="manageDictionary?" 
+        + createAddQueryString(word, definition, "add") 
+        + "&ts=" + new Date().getTime();
+    createXMLHttpRequest();
+    xmlHttp.onreadystatechange = handleAddStateChange;
+    xmlHttp.open("GET", url, true);
+    xmlHttp.send(null);
+}
+
+function createAddQueryString(word, definition, action) {
+    var queryString = "word=" + word 
+        + "&definition=" + definition
+        + "&action=" + action;
+    return queryString;
+}
+    
+function handleAddStateChange() {
+    if(xmlHttp.readyState == 4) {
+        if(xmlHttp.status == 200) {
+             addEntryToList();
+            clearInputBoxes();
+        }
+        else {
+        	renderMessage("Add new dictionary entry service failed.", false);
+        }
+    }
+}
+
+//Delete Action Method
+function deleteEntry(id) {
+    deleteID = id;
+    
+    var url = "manageDictionary?" 
+        + "action=delete" 
+        + "&id=" + id
+        + "&ts=" + new Date().getTime();
+        
+    createXMLHttpRequest();
+    xmlHttp.onreadystatechange = handleDeleteStateChange;
+    xmlHttp.open("GET", url, true);
+    xmlHttp.send(null);
+}
+
+function handleDeleteStateChange() {
+    if(xmlHttp.readyState == 4) {
+        if(xmlHttp.status == 200) {
+             deleteEntryFromList();
+        }
+        else {
+        	renderMessage("Delete existing dictionary entry service failed.", false);
+        }
+    }
+
+}
+
+//Sort Action Method
+function sortEntry(position) {
+	var direction = "0";
+    var url = "manageDictionary?" 
+        + "action=sort" 
+        + "&orderBy=" + position
+        + "&sortDirection=" + direction
+        + "&ts=" + new Date().getTime();
+        
+    createXMLHttpRequest();
+    xmlHttp.onreadystatechange = handleSortStateChange;
+    xmlHttp.open("GET", url, true);
+    xmlHttp.send(null);
+}
+
+function handleSortStateChange() {
+    if(xmlHttp.readyState == 4) {
+        if(xmlHttp.status == 200) {
+             sortedEntryList();
+        }
+        else {
+        	renderMessage("Sort dictionary entry service failed.", false);
+        }
+    }
+
+}
+
+//Helper/Renderer Methods
+function addEntryToList() {
+    var responseXML = xmlHttp.responseXML;
+    var status = responseXML.getElementsByTagName("status").item(0).firstChild.nodeValue;
+    status = parseInt(status);
+    if(status != 1) {
+    	var errMessage = responseXML.getElementsByTagName("error").item(0).firstChild.nodeValue;
+    	if(errMessage == "") {
+    		renderMessage("Error while adding new dictionary entry.", false);
+    	}else{
+        	renderMessage(errMessage, false);
+    	}
+        return;
+    }else{
+    	renderMessage("Added new dictionary entry successfully!", true);
+    }
+	var uniqueID = responseXML.getElementsByTagName("uniqueID")[0].firstChild.nodeValue;
+	addEntry(uniqueID, word, definition);
+
+    updateDictionaryManagementServletVisibility();
+}
+
+function addEntry(aId, aWord, aDefinition) {
+	var headList = document.getElementById("headList");
+	var dictionaryList = document.getElementById("dictionaryList");
+    if(headList.childNodes.length <= 0 && dictionaryList.childNodes.length <= 0) {
+	    var top = document.createElement("tr");
+	    top.setAttribute("align", "center");
+	    top.setAttribute("valign", "middle");
+	    top.appendChild(createHeaderCellWithText("ID", true, 0));
+	    top.appendChild(createHeaderCellWithText("WORD", true, 1));
+	    top.appendChild(createHeaderCellWithText("DEFINITION", true, 2));
+	    top.appendChild(createHeaderCellWithText("ACTION", false, 0));
+	    top.style.backgroundColor = "#cccccc";
+	    document.getElementById("headList").appendChild(top);
+    }
+    
+    var row = document.createElement("tr");
+    var uniqueID = aId;
+    row.setAttribute("id", DICT_PREFIX + uniqueID);
+    row.setAttribute("align", "center");
+    
+    row.appendChild(createCellWithText(uniqueID));
+    row.appendChild(createCellWithText(aWord));
+    var definitionText = document.createElement("input");
+    definitionText.setAttribute("type", "text");
+    definitionText.setAttribute("value", aDefinition);
+    definitionText.setAttribute("id", DEFINITION_PREFIX + uniqueID);
+    
+    var editButton = document.createElement("input");
+    editButton.setAttribute("type", "image");
+    editButton.setAttribute("src", "edit.gif");
+    editButton.setAttribute("id", "edit-" + uniqueID);
+    editButton.onclick = function () { updateDefinition(uniqueID); };
+    
+    cellText = document.createElement("td");
+    cellText.appendChild(definitionText);
+    cellText.appendChild(editButton);
+    row.appendChild(cellText);
+    
+    var deleteButton = document.createElement("input");
+    deleteButton.setAttribute("type", "button");
+    deleteButton.setAttribute("value", "Delete");
+    deleteButton.onclick = function () { deleteEntry(uniqueID); };
+    cell = document.createElement("td");
+    cell.appendChild(deleteButton);
+    row.appendChild(cell);
+    
+    document.getElementById("dictionaryList").appendChild(row);
+}
+
+function deleteEntryFromList() {
+    var status = xmlHttp.responseXML.getElementsByTagName("status").item(0).firstChild.nodeValue;
+    status = parseInt(status);
+    if(status != 1) {
+ 		renderMessage("Error while deleting Dictionary entry.", false);
+        return;
+    }else{
+    	renderMessage("Dictionary entry deleted successfully!", true);
+    }
+    
+    var rowToDelete = document.getElementById(DICT_PREFIX + deleteID);
+    var dictionaryList = document.getElementById("dictionaryList");
+    dictionaryList.removeChild(rowToDelete);
+    
+    updateDictionaryManagementServletVisibility();
+}
+
+function sortedEntryList() {
+    var status = xmlHttp.responseXML.getElementsByTagName("status").item(0).firstChild.nodeValue;
+    status = parseInt(status);
+    if(status != 1) {
+    	renderMessage("Error while sorting Dictionary entries.", false);
+        return;
+    }else{
+    	renderMessage("Sort Dictionary entries successfully!", true);
+    }
+    var x;
+    var aId, aWord, aDefinition;
+    var list = document.getElementById("dictionaryList").rows;
+    var count =  list.length;
+    for(var i=count-1; i >= 0; i--){
+    	var unsortedRow = list[i];
+    	dictionaryList.removeChild(unsortedRow);
+    }
+    
+   var dictionaryEntries = xmlHttp.responseXML.getElementsByTagName("dict");
+   for(var j=0; j < dictionaryEntries.length; j++){
+   		var dictionary = dictionaryEntries.item(j).childNodes;
+   		for(var k=0; k < dictionary.length; k++){
+   			var nodeObject = dictionary.item(k);
+    		if(nodeObject.nodeName == "uniqueID"){
+    			aId = nodeObject.firstChild.nodeValue;
+    		}
+    		if(nodeObject.nodeName == "word"){
+    			aWord = nodeObject.firstChild.nodeValue;
+    		}
+    		if(nodeObject.nodeName == "definition"){
+    			aDefinition = nodeObject.firstChild.nodeValue;
+    		}
+   		}
+   		addEntry(aId, aWord, aDefinition);
+    }
+    
+    updateDictionaryManagementServletVisibility();
+}
+
+//Utility Methods
+function createCellWithText(text) {
+    var cell = document.createElement("td");
+    cell.appendChild(document.createTextNode(text));
+    return cell;
+}
+
+function createHeaderCellWithText(text, sortFunction, position) {
+    var cell = document.createElement("td");
+    cell.style.fontWeight = "bold";
+    cell.style.color = "black";
+    cell.style.textDecoration = "underline";
+    
+    var sortButton = document.createElement("input");
+    sortButton.setAttribute("type", "image");
+    sortButton.setAttribute("src", "select_next.gif");
+    sortButton.onclick = function () { sortEntry(position); };
+
+    cell.appendChild(document.createTextNode(text+" "));
+    if(sortFunction){
+    	cell.appendChild(sortButton);
+    }
+    return cell;
+}
+
+function updateDictionaryManagementServletVisibility() {
+    var dictionaryList = document.getElementById("dictionaryList");
+    if(dictionaryList.childNodes.length > 0) {
+        document.getElementById("dictionaryListSpan").style.display = "";
+    }
+    else {
+        document.getElementById("dictionaryListSpan").style.display = "none";
+    }
+}
+
+function clearInputBoxes() {
+    document.getElementById("word").value = "";
+    document.getElementById("definition").value = "";
+}
+
+function sortNumber(a, b){
+	return a - b;
+}
+
+function renderMessage(message, isValid){
+	var messageColor = "green";
+	if(isValid){
+		messageColor = "green";
+	}else{
+		messageColor = "red";
+	}
+	document.getElementById("messageSpan").innerHTML = message;
+   	document.getElementById("messageSpan").style.fontWeight = "bold";
+   	document.getElementById("messageSpan").style.color = messageColor;
+    document.getElementById("messageSpan").style.display = "";
+}
+</script>
+</head>
+
+<body onLoad="sortEntry(0)">
+  <h1>Dictionary List</h1>
+  
+  <form action="#">
+    <table width="80%" border="0">
+        <tr>
+            <td><span style="font-weight:bold;">Word:</span><input type="text" id="word"/></td>
+            <td><span style="font-weight:bold;">Definition:</span><input type="text" id="definition"/></td>
+        </tr>
+        <tr>
+        	<td>
+                <input type="button" value="Reload" onclick="sortEntry(0);"/>
+            </td>
+            <td>
+                <input type="button" value="Add" onclick="addEntries();"/>
+            </td>
+        </tr>
+        <tr>
+        	<td><span style="font-weight:bold;">Search:</span><input type="text" id="search_text"/></td>
+            <td>
+                <input type="button" value="Search" onclick="searchEntries();"/>
+            </td>
+        </tr>
+    </table>
+  </form>
+
+  <span id="messageSpan" style="display:none;"></span>
+  <span id="dictionaryListSpan" style="display:none;">
+  <h2>All Dictionary Listing:</h2>
+  
+  <table border="1" width="80%">
+  	<thead id="headList"></thead>
+    <tbody id="dictionaryList"></tbody>
+  </table>
+  </span>
+</body>
+</html>
+
