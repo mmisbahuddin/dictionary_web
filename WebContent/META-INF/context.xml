@@ -1,0 +1,6 @@
+<Context debug="0" crossContext="true" >
+	<Resource auth="Container" driverClassName="com.mysql.jdbc.Driver"
+	maxActive="100" maxIdle="30" maxWait="10000" name="jdbc/dictionary"
+	password="${sql.server.pwd}" type="javax.sql.DataSource" url="jdbc:mysql://${sql.server.host}:3306/${sql.server.schema}"
+	username="${sql.server.user}" />
+</Context> 

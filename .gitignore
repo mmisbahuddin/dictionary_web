@@ -10,7 +10,6 @@ build.properties
 .project
 .idea
 .cvsignore
-context.xml
 ~*
 *~
 logs
